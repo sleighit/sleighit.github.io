@@ -54,8 +54,8 @@ The cart is saved on the customer's phone, so they can close the page and come b
 
 ## Where it's hosted now
 
-The site is live on GitHub Pages: **https://reolraju.github.io/sleigh-it/**
-(code: https://github.com/reolraju/sleigh-it, on the personal `reolraju` account).
+The site is live on GitHub Pages: **https://sleighit.github.io/**
+(code: https://github.com/sleighit/sleighit.github.io, in the `sleighit` organisation owned by your personal `reolraju` account).
 
 - **Price and stock changes:** just edit the Google Sheet. No upload needed.
 - **Changes to the page itself** (new products, photos, text): commit and push to `main`. GitHub republishes in about a minute.
