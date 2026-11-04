@@ -269,6 +269,11 @@
   .cart-foot { padding: 12px 18px calc(18px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; }
   .total { display: flex; justify-content: space-between; font-weight: 500; margin-bottom: 10px; }
   .total small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  #cTotal { text-align: right; }
+  .req { color: var(--red); }
+  .err { display: none; color: var(--red); font-size: 12.5px; margin: 6px 0 0; }
+  .cart-foot.need-name .err { display: block; }
+  .cart-foot.need-name #cName { border-color: var(--red); }
   .cart-foot label { display: block; font-size: 12.5px; color: var(--muted); margin: 8px 0 4px; }
   .cart-foot input, .cart-foot textarea {
     width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
@@ -348,8 +353,9 @@
     </div>
     <div class="cart-foot" id="cartFoot">
       <div class="total"><span>Total</span><span id="cTotal"></span></div>
-      <label for="cName">Your name</label>
-      <input id="cName" autocomplete="name" placeholder="e.g. Anna">
+      <label for="cName">Your name <span class="req">*</span></label>
+      <input id="cName" autocomplete="name" placeholder="e.g. Anna" required>
+      <p class="err" id="cErr">Please enter your name so we know who's ordering.</p>
       <a class="btn wa" id="cSend" target="_blank" rel="noopener"></a>
       <p class="hint" id="cHint"></p>
       <button class="clear" id="cClear">Clear cart</button>
@@ -632,9 +638,7 @@ function renderCart() {
         <button class="rm" data-rm="${p.code}">Remove</button>
       </div>
     </li>`).join("");
-  $("cTotal").innerHTML = total
-    ? money(total) + (unpriced ? "<small>+ items with price to confirm</small>" : "")
-    : "<small>We'll confirm prices on WhatsApp</small>";
+  $("cTotal").innerHTML = money(total) + "<small>+ shipping</small>";
   updateSend();
 }
 
@@ -649,7 +653,7 @@ function orderMessage() {
     m += "\n";
   });
   m += `\nTotal items: ${count}`;
-  if (total) m += `\nTotal: ${money(total)}${unpriced ? " + items with price to confirm" : ""}`;
+  if (total) m += `\nTotal: ${money(total)} + shipping`;
   return m;
 }
 
@@ -724,7 +728,14 @@ $("cartList").addEventListener("click", e => {
   if (t.dataset.dec) setQty(t.dataset.dec, cart[t.dataset.dec] - 1);
   if (t.dataset.rm) setQty(t.dataset.rm, 0);
 });
-$("cName").addEventListener("input", updateSend);
+$("cName").addEventListener("input", () => { if ($("cName").value.trim()) $("cartFoot").classList.remove("need-name"); updateSend(); });
+/* Name is required before the order can be sent */
+$("cSend").addEventListener("click", e => {
+  if ($("cName").value.trim()) return;
+  e.preventDefault();
+  $("cartFoot").classList.add("need-name");
+  $("cName").focus();
+});
 /* Two taps to clear (browser confirm() pop-ups are blocked in some in-app browsers) */
 let clearT;
 const resetClear = () => { clearTimeout(clearT); $("cClear").textContent = "Clear cart"; $("cClear").dataset.armed = ""; };
