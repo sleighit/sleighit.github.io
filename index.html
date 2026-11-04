@@ -125,6 +125,8 @@
   .meta { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; }
   .meta .cat { color: var(--gold); }
   .meta .code { color: var(--muted); letter-spacing: .06em; }
+  .size { display: block; font-size: 12px; color: var(--muted); margin: -6px 0 8px; }
+  .sheet .size { font-size: 13.5px; margin: -2px 0 8px; color: var(--ink); }
   .card h3 {
     font: 600 18px/1.15 var(--serif);
     color: var(--green-dark);
@@ -325,6 +327,7 @@
     <div class="body">
       <div class="meta"><span class="cat" id="sCat"></span><span class="code" id="sCode"></span></div>
       <h2 id="sName"></h2>
+      <p class="size" id="sSize"></p>
       <p class="desc" id="sDesc"></p>
       <p class="price" id="sPrice"></p>
       <div class="buy" id="sBuy">
@@ -516,6 +519,9 @@ function toast(msg) {
   clearTimeout(toastT); toastT = setTimeout(() => $("toast").classList.remove("show"), 1600);
 }
 
+/* Size in cm from the sheet (Height / Width columns) */
+const sizeText = p => p.h && p.w ? `H ${p.h} × W ${p.w} cm` : p.h ? `Height ${p.h} cm` : p.w ? `Width ${p.w} cm` : "";
+
 const lowLabel = p => !p.soldOut && p.stock != null && p.stock <= SHOP.lowStock ? `Only ${p.stock} left` : "";
 
 /* Live price & stock from Google Sheets.
@@ -548,12 +554,15 @@ async function loadSheet() {
     const head = rows[0].map(h => h.trim().toLowerCase());
     const find = (...words) => { for (const w of words) { const k = head.findIndex(h => h.includes(w)); if (k >= 0) return k; } return -1; };
     const cCode = find("code", "sku"), cPrice = find("retail", "selling", "mrp", "price"), cStock = find("stock", "available", "qty", "quantity");
+    const cH = find("height"), cW = find("width");
     if (cCode < 0) throw new Error("No code column in sheet");
     const num = v => { const n = parseFloat(String(v).replace(/[^0-9.\-]/g, "")); return isNaN(n) ? null : n; };
     for (const r of rows.slice(1)) {
       const p = BY_CODE[(r[cCode] || "").trim().toUpperCase()];
       if (!p) continue;
       if (cPrice >= 0) { const v = num(r[cPrice]); p.price = v == null ? "" : v; }
+      if (cH >= 0) p.h = num(r[cH]);
+      if (cW >= 0) p.w = num(r[cW]);
       if (cStock >= 0) { const v = num(r[cStock]); if (v != null) { p.stock = Math.max(0, Math.floor(v)); p.soldOut = p.stock === 0; } }
     }
   } catch (e) {
@@ -584,6 +593,7 @@ function renderGrid() {
         <div class="info">
           <div class="meta"><span class="cat">${p.cat}</span><span class="code">${p.code}</span></div>
           <h3>${p.name}</h3>
+          ${sizeText(p) ? `<span class="size">${sizeText(p)}</span>` : ""}
           <span class="price ${canBuy(p) ? "" : "ask"}">${!ready || (!p.soldOut && !hasPrice(p)) ? "&nbsp;" : priceText(p)}</span>
         </div>
       </button>
@@ -667,6 +677,8 @@ function openProduct(i) {
   $("sCat").textContent = p.cat;
   $("sCode").textContent = p.code;
   $("sName").textContent = p.name;
+  $("sSize").textContent = sizeText(p) ? "Size: " + sizeText(p) : "";
+  $("sSize").style.display = sizeText(p) ? "" : "none";
   $("sDesc").textContent = p.desc;
   $("sPrice").textContent = priceText(p);
   $("sPrice").className = "price" + (canBuy(p) ? "" : " ask");
