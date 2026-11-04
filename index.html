@@ -488,7 +488,7 @@ try { cart = JSON.parse(localStorage.getItem("sleighit-cart")) || {}; } catch (e
 for (const c in cart) if (!BY_CODE[c] || BY_CODE[c].soldOut) delete cart[c];
 /* Items without a price can't go in the cart; customers ask on WhatsApp instead */
 const canBuy = p => hasPrice(p) && !p.soldOut;
-const askLink = p => waLink(`Hi Sleigh It! 👋 I came across the ${p.name} (${p.code}) on your site and I love it 😍 Could you let me know the price?`);
+const askLink = p => waLink(`Hi Sleigh It! 👋 I came across the ${p.name} (${p.code}). Could you let me know the price?`);
 let ready = !(SHOP.sheet && SHOP.sheet.id);   // hide buttons until the sheet has loaded
 const pruneCart = () => { for (const c in cart) { const p = BY_CODE[c]; if (!canBuy(p)) delete cart[c]; else cart[c] = Math.min(cart[c], maxQty(p)); } };
 const saveCart = () => { try { localStorage.setItem("sleighit-cart", JSON.stringify(cart)); } catch (e) {} };
