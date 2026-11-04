@@ -48,12 +48,13 @@
     border-bottom: 1px solid var(--line);
   }
   header img { width: min(190px, 52vw); height: auto; margin: 0 auto; }
-  .intro {
-    max-width: 30em;
-    margin: 2px auto 0;
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.4;
+  .story {
+    max-width: 22em;
+    margin: 0 auto 22px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,.18);
+    font: italic 500 19px/1.35 var(--serif);
+    color: #fff;
   }
 
   /* Category chips */
@@ -88,7 +89,9 @@
 
   /* Grid */
   main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 32px; }
-  .count { color: var(--muted); font-size: 13px; margin: 0 2px 12px; }
+  .countrow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 2px 12px; }
+  .count { color: var(--muted); font-size: 13px; margin: 0; flex: none; }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.35; margin: 0; text-align: right; text-wrap: balance; }
   .grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -299,17 +302,20 @@
 
 <header>
   <img src="images/logo.png" alt="Sleigh It — Christmas Goods & Cheer" width="700" height="529">
-  <p class="intro">Tap <b>+</b> to add items, then send your order on WhatsApp.</p>
 </header>
 
 <nav aria-label="Categories"><div class="chips" id="chips"></div></nav>
 
 <main>
-  <p class="count" id="count"></p>
+  <div class="countrow">
+    <p class="count" id="count"></p>
+    <p class="hint">Tap <b>+</b> to add items, then send your order on WhatsApp.</p>
+  </div>
   <div class="grid" id="grid"></div>
 </main>
 
 <section class="order" id="order">
+  <p class="story">A little venture born out of our love for Christmas and everything that makes the season beautiful.</p>
   <h2>How to order</h2>
   <ol>
     <li>Tap <b>+</b> on the items you like to add them to your cart.</li>
