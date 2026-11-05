@@ -401,6 +401,7 @@ const SHOP = {
             appears in the WhatsApp order.
    price:   a number, e.g. 899, or "" to show "Ask for price"
    soldOut: true to mark an item sold out
+   unit:    e.g. "piece" to show the price as "₹30 per piece" ("₹30 /pc" on cards)
    photos:  file names inside the images folder (first = cover)
    ========================================================== */
 const PRODUCTS = [
@@ -453,8 +454,8 @@ const PRODUCTS = [
     desc: "A glossy Santa holding a red star, on a red ribbon for hanging." },
   { code: "ORN-02", name: "Santa Tree Ornament", cat: "Ornaments", price: "", photos: ["santa-tree-ornament.jpg"],
     desc: "A jolly Santa face wearing a Christmas-tree hat, with a candy-cane twist hanger." },
-  { code: "C0033", name: "Wreath Mirror Ornaments", cat: "Ornaments", price: "", photos: ["wreath-mirror-ornaments.jpg"],
-    desc: "Red and green holly wreaths with a little mirror centre and candy-stripe hangers." },
+  { code: "C0033", name: "Wreath Mirror Ornaments", cat: "Ornaments", price: "", unit: "piece", photos: ["wreath-mirror-ornaments.jpg"],
+    desc: "Red and green holly wreaths with a little mirror centre and candy-stripe hangers. Price is per piece." },
   { code: "C0035", name: "Cherub Ornament", cat: "Ornaments", price: "", photos: ["cherub-ornament.jpg"],
     desc: "A vintage-style cherub with a rose crown and pearly wings." },
   { code: "C0034", name: "Jingle Bells Hanger", cat: "Ornaments", price: "", photos: ["jingle-bells.jpg"],
@@ -477,10 +478,10 @@ const PRODUCTS = [
     desc: "A natural linen-look runner with scattered embroidered sprigs and lace edging." },
 
   // Stocking fillers
-  { code: "C0008", name: "Christmas Snow Globe Pens", cat: "Stocking fillers", price: "", photos: ["pens-snowglobe.jpg"],
-    desc: "Festive click pens with Santa, snowman, reindeer and tree toppers and a glittery barrel." },
-  { code: "C0007", name: "Christmas Topper Gel Pens", cat: "Stocking fillers", price: "", photos: ["pens-topper.jpg"],
-    desc: "Colourful pens with cute Christmas toppers — great little gifts and party favours." },
+  { code: "C0008", name: "Christmas Snow Globe Gel Pens", cat: "Stocking fillers", price: "", unit: "piece", photos: ["pens-snowglobe.jpg"],
+    desc: "Festive click gel pens with Santa, snowman, reindeer and tree toppers and a glittery barrel. Price is per pen." },
+  { code: "C0007", name: "Christmas Topper Ball Pens", cat: "Stocking fillers", price: "", unit: "piece", photos: ["pens-topper.jpg"],
+    desc: "Colourful ball pens with cute Christmas toppers — great little gifts and party favours. Price is per pen." },
 ];
 
 /* ---------- Nothing below needs editing ---------- */
@@ -493,7 +494,9 @@ const MINUS_ICON = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1 7h12
 const $ = id => document.getElementById(id);
 const hasPrice = p => p.price !== "" && p.price != null;
 const money = n => SHOP.currency + Number(n).toLocaleString();
-const priceText = p => p.soldOut ? "Sold out" : hasPrice(p) ? money(p.price) : "Ask for price";
+// short = compact unit for cards ("₹30 /pc"); otherwise "₹30 per piece"
+const unitText = (p, short) => !p.unit ? "" : short ? (p.unit === "piece" ? " /pc" : ` /${p.unit}`) : ` per ${p.unit}`;
+const priceText = (p, short) => p.soldOut ? "Sold out" : hasPrice(p) ? money(p.price) + unitText(p, short) : "Ask for price";
 const waLink = msg => `https://wa.me/${SHOP.whatsapp}?text=${encodeURIComponent(msg)}`;
 const isLifestyle = f => /-2\.jpg$|cushion|runner|holy-family-large/.test(f);
 
@@ -609,7 +612,7 @@ function renderGrid() {
           <div class="meta"><span class="cat">${p.cat}</span><span class="code">${p.code}</span></div>
           <h3>${p.name}</h3>
           ${sizeText(p) ? `<span class="size">${sizeText(p)}</span>` : ""}
-          <span class="price ${canBuy(p) ? "" : "ask"}">${!ready || (!p.soldOut && !hasPrice(p)) ? "&nbsp;" : priceText(p)}</span>
+          <span class="price ${canBuy(p) ? "" : "ask"}">${!ready || (!p.soldOut && !hasPrice(p)) ? "&nbsp;" : priceText(p, true)}</span>
         </div>
       </button>
       ${!ready || p.soldOut ? ""
