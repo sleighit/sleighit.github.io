@@ -389,6 +389,9 @@ const SHOP = {
   // gid = the number after gid= for the tab to read
   sheet: { id: "1RJ9jaE2dfEjR4V7NpzrOsQ7OQF5CKetvfPspfbVRjbo", gid: "1563270703" },
   lowStock: 3,   // show "Only N left" at or below this
+  // GoatCounter visitor stats: your code from goatcounter.com (the "sleighit" in sleighit.goatcounter.com).
+  // Leave "" to turn stats off.
+  goatcounter: "sleighit",
 };
 
 /* ==========================================================
@@ -610,7 +613,7 @@ function renderGrid() {
         </div>
       </button>
       ${!ready || p.soldOut ? ""
-        : !hasPrice(p) ? `<a class="askbtn" href="${askLink(p)}" target="_blank" rel="noopener">${WA_ICON}Ask price</a>`
+        : !hasPrice(p) ? `<a class="askbtn" data-ask="${p.code}" href="${askLink(p)}" target="_blank" rel="noopener">${WA_ICON}Ask price</a>`
         : cart[p.code]
         ? `<div class="step"><button data-dec="${p.code}" aria-label="One less">${MINUS_ICON}</button><span>${cart[p.code]}</span><button data-add="${p.code}" aria-label="One more">${PLUS_ICON}</button></div>`
         : `<button class="add" data-add="${p.code}" aria-label="Add ${p.name} to cart">${PLUS_ICON}</button>`}
@@ -698,6 +701,7 @@ function openProduct(i) {
   $("sAsk").innerHTML = WA_ICON + "Ask price on WhatsApp";
   $("sAdd").textContent = cart[p.code] ? `Add to cart (${cart[p.code]} already)` : "Add to cart";
   $("sheet").showModal();
+  track("view/" + p.code, p.name);
 }
 
 function renderContacts() {
@@ -715,8 +719,10 @@ $("chips").addEventListener("click", e => {
   if (scrollY > top) window.scrollTo({ top, behavior: "smooth" });
 });
 $("grid").addEventListener("click", e => {
+  const q = e.target.closest("[data-ask]");
+  if (q) { track("ask-price/" + q.dataset.ask, BY_CODE[q.dataset.ask].name); return; }
   const a = e.target.closest("[data-add]");
-  if (a) { const c = a.dataset.add, first = !cart[c]; setQty(c, (cart[c] || 0) + 1); if (first) toast(`Added ${BY_CODE[c].name}`); return; }
+  if (a) { const c = a.dataset.add, first = !cart[c]; setQty(c, (cart[c] || 0) + 1); if (first) { toast(`Added ${BY_CODE[c].name}`); track("add-to-cart/" + c, BY_CODE[c].name); } return; }
   const d = e.target.closest("[data-dec]");
   if (d) { setQty(d.dataset.dec, cart[d.dataset.dec] - 1); return; }
   const c = e.target.closest(".card"); if (c) openProduct(+c.dataset.i);
@@ -724,6 +730,7 @@ $("grid").addEventListener("click", e => {
 $("sMinus").onclick = () => { sheetQty = Math.max(1, sheetQty - 1); $("sQty").textContent = sheetQty; };
 $("sPlus").onclick = () => { sheetQty = Math.min(Math.max(1, maxQty(current) - (cart[current.code] || 0)), sheetQty + 1); $("sQty").textContent = sheetQty; };
 $("sAdd").onclick = () => {
+  if (!cart[current.code]) track("add-to-cart/" + current.code, current.name);
   setQty(current.code, (cart[current.code] || 0) + sheetQty);
   $("sheet").close(); toast(`Added ${sheetQty} × ${current.name}`);
 };
@@ -737,7 +744,7 @@ $("cartList").addEventListener("click", e => {
 $("cName").addEventListener("input", () => { if ($("cName").value.trim()) $("cartFoot").classList.remove("need-name"); updateSend(); });
 /* Name is required before the order can be sent */
 $("cSend").addEventListener("click", e => {
-  if ($("cName").value.trim()) return;
+  if ($("cName").value.trim()) { if (SHOP.whatsapp) track("send-order", `Order sent (${cartSummary().count} items)`); return; }
   e.preventDefault();
   $("cartFoot").classList.add("need-name");
   $("cName").focus();
@@ -763,6 +770,22 @@ $("gallery").addEventListener("scroll", () => {
   const g = $("gallery"), k = Math.round(g.scrollLeft / g.clientWidth);
   [...$("dots").children].forEach((d, j) => d.classList.toggle("on", j === k));
 });
+
+$("sAsk").addEventListener("click", () => track("ask-price/" + current.code, current.name));
+
+/* GoatCounter: counts page visits and the button taps above. No cookies, no personal details. */
+function track(path, title) {
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title, event: true }); } catch (e) {}
+}
+if (SHOP.goatcounter) {
+  // Open the page with ?gctest to also count visits from a local preview (for testing)
+  if (/[?&]gctest\b/.test(location.search)) window.goatcounter = { allow_local: true };
+  const gc = document.createElement("script");
+  gc.async = true;
+  gc.src = "https://gc.zgo.at/count.js";
+  gc.dataset.goatcounter = `https://${SHOP.goatcounter}.goatcounter.com/count`;
+  document.head.appendChild(gc);
+}
 
 $("yr").textContent = new Date().getFullYear();
 renderChips(); renderGrid(); renderCartBar(); renderContacts();
