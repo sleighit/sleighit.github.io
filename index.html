@@ -268,6 +268,13 @@
   .cart-list .nm { font: 600 17px/1.15 var(--serif); color: var(--green-dark); }
   .cart-list .sub { font-size: 12.5px; color: var(--muted); }
   .cart-list .right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .suggest { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; background: var(--paper); border-radius: 10px; padding: 10px; margin: 12px 0; }
+  .cart-list li.suggest { border: 0; padding: 10px; }
+  .suggest img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+  .suggest .nm { font: 600 17px/1.15 var(--serif); color: var(--green-dark); }
+  .suggest .sub { font-size: 12.5px; color: var(--muted); }
+  .suggest .tip { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .suggest .sadd { border: 0; border-radius: 999px; background: var(--green); color: #fff; font: 500 13px var(--sans); padding: 8px 14px; cursor: pointer; }
   .cart-list .rm { border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 0; }
   .cart-foot { padding: 12px 18px calc(18px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; }
   .total { display: flex; justify-content: space-between; font-weight: 500; margin-bottom: 10px; }
@@ -346,6 +353,7 @@
         <button class="btn primary" id="sAdd">Add to cart</button>
       </div>
       <a class="btn wa" id="sAsk" target="_blank" rel="noopener" style="width:100%;margin-top:14px"></a>
+      <div id="sSuggest"></div>
     </div>
   </div>
 </dialog>
@@ -375,13 +383,14 @@
 /* ==========================================================
    EDIT YOUR SHOP DETAILS HERE
    ----------------------------------------------------------
-   whatsapp:  your number with country code, digits only
-              e.g. "919876543210". Orders are sent here.
+   whatsapp:  numbers with country code, digits only
+              e.g. "919876543210". Each visitor is given one at
+              random (and keeps it), so orders are split evenly.
    instagram: your handle without @  (leave "" to hide)
    currency:  shown before prices, e.g. "₹", "$", "£"
    ========================================================== */
 const SHOP = {
-  whatsapp: "917025662944",
+  whatsapp: ["917025662944", "917736969484"],
   instagram: "",
   currency: "₹",
   // Live price & stock from Google Sheets (sheet must be "Anyone with the link: Viewer").
@@ -403,6 +412,8 @@ const SHOP = {
    soldOut: true to mark an item sold out
    unit:    e.g. "piece" to show the price as "₹30 per piece" ("₹30 /pc" on cards)
    photos:  file names inside the images folder (first = cover)
+   suggest: a product code to suggest with this item, or a list to try
+            in order (e.g. ["PWD-20", "C0036"] falls back when the first is sold out)
    ========================================================== */
 const PRODUCTS = [
   // Nativity sets
@@ -410,19 +421,19 @@ const PRODUCTS = [
     desc: "A traditional nativity in soft taupe and cream tones, with the Holy Family, three kings, shepherd and animals." },
   { code: "C0010", name: "Ivory Nativity Set", cat: "Nativity", price: "", photos: ["nativity-ivory.jpg"],
     desc: "An all-ivory nativity with a carved, textured finish and gentle gold accents." },
-  { code: "C0018", name: "Hand-Painted Nativity Set", cat: "Nativity", price: "", photos: ["nativity-painted.jpg"],
+  { code: "C0018", name: "Hand-Painted Nativity Set", cat: "Nativity", price: "", suggest: ["PWD-20", "C0036"], photos: ["nativity-painted.jpg"],
     desc: "Charming, colourfully painted figures — a cheerful nativity that kids love too." },
   { code: "C0004", name: "Nativity with Wooden Stable", cat: "Nativity", price: "", photos: ["nativity-stable.jpg"],
     desc: "A complete scene with a rustic wooden stable, figures and animals." },
   { code: "C0005", name: "Wooden Star Stable Nativity", cat: "Nativity", price: "", photos: ["nativity-wooden.jpg", "nativity-wooden-2.jpg"],
     desc: "A laser-cut wooden stable topped with a star, with little brightly painted figures." },
-  { code: "C0001", name: "White & Gold Nativity with Camel", cat: "Nativity", price: "", photos: ["nativity-camel.jpg", "nativity-camel-2.jpg"],
+  { code: "C0001", name: "White & Gold Nativity with Camel", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-camel.jpg", "nativity-camel-2.jpg"],
     desc: "Sweet white figures with gold details, including a camel, llama and woolly sheep." },
-  { code: "C0003", name: "Little Ones Nativity Set", cat: "Nativity", price: "", photos: ["nativity-kids.jpg", "nativity-kids-2.jpg"],
+  { code: "C0003", name: "Little Ones Nativity Set", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-kids.jpg", "nativity-kids-2.jpg"],
     desc: "Round-faced, child-like figures in glossy white with gold crowns and halos." },
-  { code: "C0002", name: "White & Gold Mini Nativity", cat: "Nativity", price: "", photos: ["nativity-gold.jpg", "nativity-gold-2.jpg"],
+  { code: "C0002", name: "White & Gold Mini Nativity", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-gold.jpg", "nativity-gold-2.jpg"],
     desc: "A dainty white nativity with shimmering gold trim — lovely on a mantel or side table." },
-  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", photos: ["nativity-round.jpg"],
+  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", suggest: ["PWD-20", "C0036"], photos: ["nativity-round.jpg"],
     desc: "Tiny, rounded white and gold figures — a gentle, modern take on the nativity." },
   { code: "C0017", name: "Holy Family Arch", cat: "Nativity", price: "", photos: ["holy-family-arch.jpg"],
     desc: "Mary, Joseph and baby Jesus sheltered under an ivory arch with a gold star." },
@@ -476,6 +487,11 @@ const PRODUCTS = [
     desc: "A natural linen-look runner with embroidered bauble and holly motifs." },
   { code: "C0020", name: "Linen Sprig Table Runner", cat: "Home", price: "", photos: ["runner-linen-sprig.jpg"],
     desc: "A natural linen-look runner with scattered embroidered sprigs and lace edging." },
+  { code: "C0036", name: "Pine Wood Disc (15 cm)", cat: "Home", price: "", unit: "piece", photos: ["pine-wood-disc.jpg"],
+    desc: "A natural pine wood slice, about 15 cm across, with the bark edge left on. Lovely for crafts, coasters or a rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
+  // 20 cm disc isn't in the stock sheet yet: swap in its real code when it is (also in C0016/C0018 suggest), and remove soldOut
+  { code: "PWD-20", name: "Pine Wood Disc (20 cm)", cat: "Home", price: "", unit: "piece", soldOut: true, photos: ["pine-wood-disc.jpg"],
+    desc: "A larger natural pine wood slice, about 20 cm across, with the bark edge left on. Lovely as a cake stand, candle base or rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
 
   // Stocking fillers
   { code: "C0008", name: "Christmas Snow Globe Gel Pens", cat: "Stocking fillers", price: "", unit: "piece", photos: ["pens-snowglobe.jpg"],
@@ -497,7 +513,15 @@ const money = n => SHOP.currency + Number(n).toLocaleString();
 // short = compact unit for cards ("₹30 /pc"); otherwise "₹30 per piece"
 const unitText = (p, short) => !p.unit ? "" : short ? (p.unit === "piece" ? " /pc" : ` /${p.unit}`) : ` per ${p.unit}`;
 const priceText = (p, short) => p.soldOut ? "Sold out" : hasPrice(p) ? money(p.price) + unitText(p, short) : "Ask for price";
-const waLink = msg => `https://wa.me/${SHOP.whatsapp}?text=${encodeURIComponent(msg)}`;
+/* Pick one WhatsApp number per visitor and remember it on this phone */
+const WA_NUMBERS = [].concat(SHOP.whatsapp || []);
+let waNumber = "";
+try { waNumber = localStorage.getItem("sleighit-wa") || ""; } catch (e) {}
+if (!WA_NUMBERS.includes(waNumber)) {
+  waNumber = WA_NUMBERS[Math.floor(Math.random() * WA_NUMBERS.length)] || "";
+  try { localStorage.setItem("sleighit-wa", waNumber); } catch (e) {}
+}
+const waLink = msg => `https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}`;
 const isLifestyle = f => /-2\.jpg$|cushion|runner|holy-family-large/.test(f);
 
 /* Cart: { code: qty }, remembered on this phone */
@@ -649,10 +673,33 @@ function renderCart() {
         <div class="qty"><button data-dec="${p.code}" aria-label="Less">−</button><span>${qty}</span><button data-inc="${p.code}" aria-label="More">+</button></div>
         <button class="rm" data-rm="${p.code}">Remove</button>
       </div>
-    </li>`).join("");
+    </li>`).join("") + suggestions(lines);
   $("cTotal").innerHTML = money(total) + "<small>+ shipping</small>";
   updateSend();
 }
+
+/* "Goes well with" items (see suggest: in PRODUCTS), shown in the cart and the product popup */
+/* First buyable code in the list, or nothing if one of them is already in the cart */
+const pickSuggest = s => { const cs = [].concat(s || []); return cs.some(c => cart[c]) ? null : cs.map(c => BY_CODE[c]).find(p => p && canBuy(p)) || null; };
+const suggestCard = (p, tag, tip) => `
+    <${tag} class="suggest">
+      <img src="images/${p.photos[0]}" alt="">
+      <div>
+        <div class="tip">${tip}</div>
+        <div class="nm">${p.name}</div>
+        <div class="sub">${priceText(p)}</div>
+      </div>
+      <button class="sadd" data-sadd="${p.code}">Add</button>
+    </${tag}>`;
+function suggestions(lines) {
+  const picks = [...new Set(lines.map(l => pickSuggest(l.p.suggest)).filter(Boolean))];
+  return picks.map(p => suggestCard(p, "li", "Goes well with your nativity")).join("");
+}
+function renderSheetSuggest() {
+  const p = pickSuggest(current.suggest);
+  $("sSuggest").innerHTML = p ? suggestCard(p, "div", "Goes well with this nativity") : "";
+}
+const addSuggested = c => { setQty(c, 1); toast(`Added ${BY_CODE[c].name}`); track("suggest-add/" + c, BY_CODE[c].name); };
 
 function orderMessage() {
   const { lines, count, total, unpriced } = cartSummary();
@@ -672,7 +719,7 @@ function orderMessage() {
 function updateSend() {
   const s = $("cSend");
   s.innerHTML = WA_ICON + "Send order on WhatsApp";
-  if (SHOP.whatsapp) {
+  if (waNumber) {
     s.href = waLink(orderMessage());
     s.removeAttribute("aria-disabled"); s.style.opacity = "";
     $("cHint").textContent = "This opens WhatsApp with your order typed out. Just tap send.";
@@ -703,13 +750,14 @@ function openProduct(i) {
   $("sAsk").href = askLink(p);
   $("sAsk").innerHTML = WA_ICON + "Ask price on WhatsApp";
   $("sAdd").textContent = cart[p.code] ? `Add to cart (${cart[p.code]} already)` : "Add to cart";
+  renderSheetSuggest();
   $("sheet").showModal();
   track("view/" + p.code, p.name);
 }
 
 function renderContacts() {
   const out = [];
-  if (SHOP.whatsapp) out.push(`<a class="btn wa" href="${waLink("Hi Sleigh It! I have a question.")}" target="_blank" rel="noopener">${WA_ICON}Message us on WhatsApp</a>`);
+  if (waNumber) out.push(`<a class="btn wa" href="${waLink("Hi Sleigh It! I have a question.")}" target="_blank" rel="noopener">${WA_ICON}Message us on WhatsApp</a>`);
   if (SHOP.instagram) out.push(`<a class="btn" href="https://instagram.com/${SHOP.instagram}" target="_blank" rel="noopener">Instagram @${SHOP.instagram}</a>`);
   $("contacts").innerHTML = out.join("");
 }
@@ -737,17 +785,21 @@ $("sAdd").onclick = () => {
   setQty(current.code, (cart[current.code] || 0) + sheetQty);
   $("sheet").close(); toast(`Added ${sheetQty} × ${current.name}`);
 };
+$("sSuggest").addEventListener("click", e => {
+  const t = e.target.closest("[data-sadd]"); if (t) { addSuggested(t.dataset.sadd); renderSheetSuggest(); }
+});
 $("cartBtn").onclick = () => { renderCart(); $("cart").showModal(); };
 $("cartList").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.dataset.inc) setQty(t.dataset.inc, cart[t.dataset.inc] + 1);
   if (t.dataset.dec) setQty(t.dataset.dec, cart[t.dataset.dec] - 1);
   if (t.dataset.rm) setQty(t.dataset.rm, 0);
+  if (t.dataset.sadd) addSuggested(t.dataset.sadd);
 });
 $("cName").addEventListener("input", () => { if ($("cName").value.trim()) $("cartFoot").classList.remove("need-name"); updateSend(); });
 /* Name is required before the order can be sent */
 $("cSend").addEventListener("click", e => {
-  if ($("cName").value.trim()) { if (SHOP.whatsapp) track("send-order", `Order sent (${cartSummary().count} items)`); return; }
+  if ($("cName").value.trim()) { if (waNumber) track("send-order", `Order sent (${cartSummary().count} items)`); return; }
   e.preventDefault();
   $("cartFoot").classList.add("need-name");
   $("cName").focus();
