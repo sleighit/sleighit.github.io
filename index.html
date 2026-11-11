@@ -612,6 +612,18 @@ try { cart = JSON.parse(localStorage.getItem("sleighit-cart")) || {}; } catch (e
 for (const c in cart) if (!BY_CODE[c] || BY_CODE[c].soldOut) delete cart[c];
 /* Items without a price can't go in the cart; customers ask on WhatsApp instead */
 const canBuy = p => hasPrice(p) && !p.soldOut;
+/* Where the visitor came from: links like ?ref=wa-group. Remembered on this phone for 30 days
+   and added to the WhatsApp order, so you can see which posts bring orders. */
+const REF_NAMES = { "wa-group": "WhatsApp group", "wa-status": "WhatsApp status", "wa-personal": "WhatsApp message", whatsapp: "WhatsApp", instagram: "Instagram" };
+const REF = (() => {
+  const q = new URLSearchParams(location.search), raw = (q.get("ref") || q.get("utm_source") || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 30);
+  try {
+    if (raw) { localStorage.setItem("sleighit-ref", JSON.stringify({ ref: raw, t: Date.now() })); return raw; }
+    const o = JSON.parse(localStorage.getItem("sleighit-ref") || "null");
+    return o && Date.now() - o.t < 30 * 864e5 ? o.ref : "";
+  } catch (e) { return raw; }
+})();
+const refName = r => REF_NAMES[r] || r;
 const skuOf = p => p.sku || p.code;   // the code customers and the sheet use
 const askLink = p => waLink(`Hi Sleigh It! 👋 I came across the ${p.name} (${skuOf(p)}). Could you let me know the price?`);
 let ready = !(SHOP.sheet && SHOP.sheet.id);   // hide buttons until the sheet has loaded
@@ -843,6 +855,7 @@ function orderMessage() {
   const { lines, count, total, unpriced } = cartSummary();
   const name = $("cName").value.trim();
   let m = name ? `Hi, I'm ${name}!\n` : "Hi!\n";
+  const tail = REF ? `\n\n(Found you via ${refName(REF)})` : "";
   m += "I'm interested in these items:\n\n";
   lines.forEach(({ p, qty }, k) => {
     const free = freeQty(p.code);
@@ -856,7 +869,7 @@ function orderMessage() {
   m += `\nTotal items: ${count}`;
   for (const x of cartSummary().deals) if (x.save) m += `\nOffer: ${x.d.qty} ${x.d.what} for ${money(x.d.price)} (−${money(x.save)})`;
   if (total) m += SHOP.freeDelivery && total >= SHOP.freeDelivery ? `\nTotal: ${money(total)} (free delivery)` : `\nTotal: ${money(total)} + shipping`;
-  return m;
+  return m + tail;
 }
 
 function updateSend() {
@@ -958,7 +971,7 @@ $("cartList").addEventListener("click", e => {
 $("cName").addEventListener("input", () => { if ($("cName").value.trim()) $("cartFoot").classList.remove("need-name"); updateSend(); });
 /* Name is required before the order can be sent */
 $("cSend").addEventListener("click", e => {
-  if ($("cName").value.trim()) { if (waNumber) track("send-order", `Order sent (${cartSummary().count} items)`); return; }
+  if ($("cName").value.trim()) { if (waNumber) track("send-order" + (REF ? "/" + REF : ""), `Order sent (${cartSummary().count} items)${REF ? " via " + refName(REF) : ""}`); return; }
   e.preventDefault();
   $("cartFoot").classList.add("need-name");
   $("cName").focus();
@@ -998,6 +1011,7 @@ if (SHOP.goatcounter) {
   gc.async = true;
   gc.src = "https://gc.zgo.at/count.js";
   gc.dataset.goatcounter = `https://${SHOP.goatcounter}.goatcounter.com/count`;
+  if (REF) gc.onload = () => track("ref/" + REF, "Visit from " + refName(REF));   // count visits per source
   document.head.appendChild(gc);
 }
 
