@@ -124,6 +124,30 @@
     font-size: 11px; color: var(--muted);
   }
   .badge.low { left: auto; right: 8px; background: var(--red); color: #fff; }
+  /* Offer ribbons on the photo */
+  .ribbons { position: absolute; left: 0; bottom: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .ribbon {
+    color: #fff; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    padding: 4px 10px 4px 8px; border-radius: 0 999px 999px 0; box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .ribbon.sale { background: var(--red); }
+  .ribbon.gift { background: var(--gold); }
+  .ribbon.deal { background: var(--green); }
+  /* Offer banner under the logo */
+  .promo {
+    display: block; width: 100%; border: 0; cursor: pointer;
+    background: var(--green-dark); color: #fff; text-align: center;
+    padding: 10px 16px 11px;
+  }
+  .promo .t { font: italic 500 17px/1.3 var(--serif); }
+  .promo .t span { display: block; }   /* one offer per line on phones */
+  @media (min-width: 640px) {
+    .promo .t span { display: inline; }
+    .promo .t span + span::before { content: "·"; margin: 0 10px; color: #e2c48a; font-style: normal; }
+  }
+  .promo .end { display: block; font-size: 12px; opacity: .8; margin-top: 3px; }
+  .chip.deal { border-color: var(--red); color: var(--red); }
+  .chip.deal[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
   .card .info { padding: 10px 12px 10px; border-top: 1px solid var(--line); flex: 1; display: flex; flex-direction: column; }
   .meta { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; }
   .meta .cat { color: var(--gold); }
@@ -270,10 +294,18 @@
   .cart-list .right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
   .suggest { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; background: var(--paper); border-radius: 10px; padding: 10px; margin: 12px 0; }
   .cart-list li.suggest { border: 0; padding: 10px; }
+  .cart-list li.dealrow { grid-template-columns: 1fr auto; background: var(--paper); border: 0; border-radius: 10px; padding: 10px 12px; margin: 12px 0; font-size: 13.5px; }
+  .dealrow .save { color: var(--green); font-weight: 600; white-space: nowrap; }
+  .dealrow .nudge { grid-column: 1 / -1; color: var(--red); font-size: 12.5px; }
   .suggest img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
   .suggest .nm { font: 600 17px/1.15 var(--serif); color: var(--green-dark); }
   .suggest .sub { font-size: 12.5px; color: var(--muted); }
   .suggest .tip { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .offer { display: block; font-size: 12px; font-weight: 500; color: var(--gold); margin: -4px 0 6px; }
+  .price s { color: var(--muted); font-weight: 400; font-size: .85em; margin-right: 4px; }
+  .sheet .offer { font-size: 13.5px; margin: 4px 0 10px; }
+  .badge.mto { left: auto; right: 8px; background: var(--green); color: #fff; }
+  .free { color: var(--green); font-weight: 500; }
   .suggest .sadd { border: 0; border-radius: 999px; background: var(--green); color: #fff; font: 500 13px var(--sans); padding: 8px 14px; cursor: pointer; }
   .cart-list .rm { border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 0; }
   .cart-foot { padding: 12px 18px calc(18px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; }
@@ -310,6 +342,7 @@
 <header>
   <img src="images/logo.png" alt="Sleigh It — Christmas Goods & Cheer" width="700" height="529">
 </header>
+<button class="promo" id="promo" hidden></button>
 
 <nav aria-label="Categories"><div class="chips" id="chips"></div></nav>
 
@@ -348,6 +381,7 @@
       <p class="size" id="sSize"></p>
       <p class="desc" id="sDesc"></p>
       <p class="price" id="sPrice"></p>
+      <p class="offer" id="sOffer"></p>
       <div class="buy" id="sBuy">
         <div class="qty"><button id="sMinus" aria-label="Less">−</button><span id="sQty">1</span><button id="sPlus" aria-label="More">+</button></div>
         <button class="btn primary" id="sAdd">Add to cart</button>
@@ -398,6 +432,7 @@ const SHOP = {
   // gid = the number after gid= for the tab to read
   sheet: { id: "1RJ9jaE2dfEjR4V7NpzrOsQ7OQF5CKetvfPspfbVRjbo", gid: "1563270703" },
   lowStock: 3,   // show "Only N left" at or below this
+  offerEnds: "",   // e.g. "20 Dec" to show "Till 20 Dec" in the offer banner; "" = no end date
   // GoatCounter visitor stats: your code from goatcounter.com (the "sleighit" in sleighit.goatcounter.com).
   // Leave "" to turn stats off.
   goatcounter: "sleighit",
@@ -413,27 +448,37 @@ const SHOP = {
    unit:    e.g. "piece" to show the price as "₹30 per piece" ("₹30 /pc" on cards)
    photos:  file names inside the images folder (first = cover)
    suggest: a product code to suggest with this item, or a list to try
-            in order (e.g. ["PWD-20", "C0036"] falls back when the first is sold out)
+            in order (e.g. ["C0037", "C0036"] falls back when the first is sold out)
+   gift:    a product code the customer can add FREE, one per piece of this item.
+            It isn't added automatically: the cart offers it and they tap "Add free".
+   discount: percent off the sheet price, e.g. 10 (shows the old price crossed out)
+   deal:    the name of a multi-buy offer in DEALS below, e.g. "cushions2" (mix and match within the deal)
+   madeToOrder: true = can still be ordered at 0 stock (shows "Made to order")
    ========================================================== */
+/* Multi-buy offers: every `qty` items with this deal cost `price` together */
+const DEALS = {
+  cushions2: { qty: 2, price: 800, what: "cushion covers", one: "cushion cover", icon: "🛋️" },
+};
+
 const PRODUCTS = [
   // Nativity sets
   { code: "C0011", name: "Classic Nativity Set", cat: "Nativity", price: "", photos: ["nativity-classic.jpg", "nativity-classic-2.jpg"],
     desc: "A traditional nativity in soft taupe and cream tones, with the Holy Family, three kings, shepherd and animals." },
   { code: "C0010", name: "Ivory Nativity Set", cat: "Nativity", price: "", photos: ["nativity-ivory.jpg"],
     desc: "An all-ivory nativity with a carved, textured finish and gentle gold accents." },
-  { code: "C0018", name: "Hand-Painted Nativity Set", cat: "Nativity", price: "", suggest: ["PWD-20", "C0036"], photos: ["nativity-painted.jpg"],
+  { code: "C0018", name: "Hand-Painted Nativity Set", cat: "Nativity", price: "", gift: "C0037", photos: ["nativity-painted.jpg"],
     desc: "Charming, colourfully painted figures — a cheerful nativity that kids love too." },
   { code: "C0004", name: "Nativity with Wooden Stable", cat: "Nativity", price: "", photos: ["nativity-stable.jpg"],
     desc: "A complete scene with a rustic wooden stable, figures and animals." },
-  { code: "C0005", name: "Wooden Star Stable Nativity", cat: "Nativity", price: "", photos: ["nativity-wooden.jpg", "nativity-wooden-2.jpg"],
+  { code: "C0005", name: "Wooden Star Stable Nativity", cat: "Nativity", price: "", discount: 10, photos: ["nativity-wooden.jpg", "nativity-wooden-2.jpg"],
     desc: "A laser-cut wooden stable topped with a star, with little brightly painted figures." },
-  { code: "C0001", name: "White & Gold Nativity with Camel", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-camel.jpg", "nativity-camel-2.jpg"],
+  { code: "C0001", name: "White & Gold Nativity with Camel", cat: "Nativity", price: "", gift: "C0036", photos: ["nativity-camel.jpg", "nativity-camel-2.jpg"],
     desc: "Sweet white figures with gold details, including a camel, llama and woolly sheep." },
-  { code: "C0003", name: "Little Ones Nativity Set", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-kids.jpg", "nativity-kids-2.jpg"],
+  { code: "C0003", name: "Little Ones Nativity Set", cat: "Nativity", price: "", gift: "C0036", photos: ["nativity-kids.jpg", "nativity-kids-2.jpg"],
     desc: "Round-faced, child-like figures in glossy white with gold crowns and halos." },
-  { code: "C0002", name: "White & Gold Mini Nativity", cat: "Nativity", price: "", suggest: "C0036", photos: ["nativity-gold.jpg", "nativity-gold-2.jpg"],
+  { code: "C0002", name: "White & Gold Mini Nativity", cat: "Nativity", price: "", gift: "C0036", photos: ["nativity-gold.jpg", "nativity-gold-2.jpg"],
     desc: "A dainty white nativity with shimmering gold trim — lovely on a mantel or side table." },
-  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", suggest: ["PWD-20", "C0036"], photos: ["nativity-round.jpg"],
+  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", gift: "C0037", photos: ["nativity-round.jpg"],
     desc: "Tiny, rounded white and gold figures — a gentle, modern take on the nativity." },
   { code: "C0017", name: "Holy Family Arch", cat: "Nativity", price: "", photos: ["holy-family-arch.jpg"],
     desc: "Mary, Joseph and baby Jesus sheltered under an ivory arch with a gold star." },
@@ -460,6 +505,27 @@ const PRODUCTS = [
   { code: "C0012", name: "Praying Angel", cat: "Angels", price: "", photos: ["angel-praying.jpg"],
     desc: "A simple, serene angel with hands folded in prayer." },
 
+  // Home linens
+  { code: "C0023", deal: "cushions2", name: "Wreath Cushion Cover", cat: "Home", price: "", photos: ["cushion-wreath.jpg"],
+    desc: "A cream cushion cover with an embroidered pine and berry wreath border." },
+  { code: "C0024", deal: "cushions2", name: "Berry Sprig Cushion Cover", cat: "Home", price: "", photos: ["cushion-berry.jpg"],
+    desc: "A linen-look taupe cushion cover with scattered embroidered berries and flowers." },
+  { code: "C0025", deal: "cushions2", name: "Cream Sprig Cushion Cover", cat: "Home", price: "", photos: ["cushion-sprig.jpg"],
+    desc: "A cream cushion cover with tiny embroidered holly sprigs and gold dots." },
+  { code: "C0021", name: "White Wreath Table Runner", cat: "Home", price: "", photos: ["runner-white-wreath.jpg"],
+    desc: "A white runner with embroidered wreaths at each end and a lace edge." },
+  { code: "C0022", name: "White Sprig Table Runner", cat: "Home", price: "", photos: ["runner-white-sprig.jpg"],
+    desc: "A white runner with delicate embroidered sprigs and a lace trim." },
+  { code: "C0019", name: "Linen Ornament Table Runner", cat: "Home", price: "", photos: ["runner-linen-wreath.jpg"],
+    desc: "A natural linen-look runner with embroidered bauble and holly motifs." },
+  { code: "C0020", name: "Linen Sprig Table Runner", cat: "Home", price: "", photos: ["runner-linen-sprig.jpg"],
+    desc: "A natural linen-look runner with scattered embroidered sprigs and lace edging." },
+  { code: "C0036", name: "Pine Wood Disc (15 cm)", cat: "Home", price: "", unit: "piece", madeToOrder: true, photos: ["pine-wood-disc.jpg"],
+    desc: "A natural pine wood slice, about 15 cm across, with the bark edge left on. Lovely for crafts, coasters or a rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
+  // 20 cm disc: ₹200 here until the sheet has a retail price for C0037 (a "-" in the sheet keeps this price)
+  { code: "C0037", name: "Pine Wood Disc (20 cm)", cat: "Home", price: 200, unit: "piece", madeToOrder: true, photos: ["pine-wood-disc.jpg"],
+    desc: "A larger natural pine wood slice, about 20 cm across, with the bark edge left on. Lovely as a cake stand, candle base or rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
+
   // Ornaments
   { code: "C0028", name: "Santa Ornament", cat: "Ornaments", price: "", photos: ["santa-ornament.jpg"],
     desc: "A glossy Santa holding a red star, on a red ribbon for hanging." },
@@ -472,27 +538,6 @@ const PRODUCTS = [
   { code: "C0034", name: "Jingle Bells Hanger", cat: "Ornaments", price: "", photos: ["jingle-bells.jpg"],
     desc: "Three green bells on jute rope with pine, berries and a pinecone. Perfect for a door." },
 
-  // Home linens
-  { code: "C0023", name: "Wreath Cushion Cover", cat: "Home", price: "", photos: ["cushion-wreath.jpg"],
-    desc: "A cream cushion cover with an embroidered pine and berry wreath border." },
-  { code: "C0024", name: "Berry Sprig Cushion Cover", cat: "Home", price: "", photos: ["cushion-berry.jpg"],
-    desc: "A linen-look taupe cushion cover with scattered embroidered berries and flowers." },
-  { code: "C0025", name: "Cream Sprig Cushion Cover", cat: "Home", price: "", photos: ["cushion-sprig.jpg"],
-    desc: "A cream cushion cover with tiny embroidered holly sprigs and gold dots." },
-  { code: "C0021", name: "White Wreath Table Runner", cat: "Home", price: "", photos: ["runner-white-wreath.jpg"],
-    desc: "A white runner with embroidered wreaths at each end and a lace edge." },
-  { code: "C0022", name: "White Sprig Table Runner", cat: "Home", price: "", photos: ["runner-white-sprig.jpg"],
-    desc: "A white runner with delicate embroidered sprigs and a lace trim." },
-  { code: "C0019", name: "Linen Ornament Table Runner", cat: "Home", price: "", photos: ["runner-linen-wreath.jpg"],
-    desc: "A natural linen-look runner with embroidered bauble and holly motifs." },
-  { code: "C0020", name: "Linen Sprig Table Runner", cat: "Home", price: "", photos: ["runner-linen-sprig.jpg"],
-    desc: "A natural linen-look runner with scattered embroidered sprigs and lace edging." },
-  { code: "C0036", name: "Pine Wood Disc (15 cm)", cat: "Home", price: "", unit: "piece", photos: ["pine-wood-disc.jpg"],
-    desc: "A natural pine wood slice, about 15 cm across, with the bark edge left on. Lovely for crafts, coasters or a rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
-  // 20 cm disc isn't in the stock sheet yet: swap in its real code when it is (also in C0016/C0018 suggest), and remove soldOut
-  { code: "PWD-20", name: "Pine Wood Disc (20 cm)", cat: "Home", price: "", unit: "piece", soldOut: true, photos: ["pine-wood-disc.jpg"],
-    desc: "A larger natural pine wood slice, about 20 cm across, with the bark edge left on. Lovely as a cake stand, candle base or rustic centrepiece. Each one is a real piece of wood, so size and shape vary slightly. Price is per piece." },
-
   // Stocking fillers
   { code: "C0008", name: "Christmas Snow Globe Gel Pens", cat: "Stocking fillers", price: "", unit: "piece", photos: ["pens-snowglobe.jpg"],
     desc: "Festive click gel pens with Santa, snowman, reindeer and tree toppers and a glittery barrel. Writes in blue ink. Price is per pen." },
@@ -501,8 +546,10 @@ const PRODUCTS = [
 ];
 
 /* ---------- Nothing below needs editing ---------- */
-const CATS = ["All", ...new Set(PRODUCTS.map(p => p.cat))];
 const BY_CODE = Object.fromEntries(PRODUCTS.map(p => [p.code, p]));
+const OFFERS = "Offers";
+const isOffer = p => !p.soldOut && (!!p.discount || !!DEALS[p.deal] || !!(p.gift && BY_CODE[p.gift] && !BY_CODE[p.gift].soldOut));
+const CATS = ["All", ...(PRODUCTS.some(isOffer) ? [OFFERS] : []), ...new Set(PRODUCTS.map(p => p.cat))];
 const WA_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4zM12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.3c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.3 8.3 0 1 1 12 20.3z"/></svg>';
 
 const PLUS_ICON = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
@@ -512,7 +559,7 @@ const hasPrice = p => p.price !== "" && p.price != null;
 const money = n => SHOP.currency + Number(n).toLocaleString();
 // short = compact unit for cards ("₹30 /pc"); otherwise "₹30 per piece"
 const unitText = (p, short) => !p.unit ? "" : short ? (p.unit === "piece" ? " /pc" : ` /${p.unit}`) : ` per ${p.unit}`;
-const priceText = (p, short) => p.soldOut ? "Sold out" : hasPrice(p) ? money(p.price) + unitText(p, short) : "Ask for price";
+const priceText = (p, short) => p.soldOut ? "Sold out" : hasPrice(p) ? (p.was ? `<s>${money(p.was)}</s>` : "") + money(p.price) + unitText(p, short) : "Ask for price";
 /* Pick one WhatsApp number per visitor and remember it on this phone */
 const WA_NUMBERS = [].concat(SHOP.whatsapp || []);
 let waNumber = "";
@@ -532,27 +579,42 @@ for (const c in cart) if (!BY_CODE[c] || BY_CODE[c].soldOut) delete cart[c];
 const canBuy = p => hasPrice(p) && !p.soldOut;
 const askLink = p => waLink(`Hi Sleigh It! 👋 I came across the ${p.name} (${p.code}). Could you let me know the price?`);
 let ready = !(SHOP.sheet && SHOP.sheet.id);   // hide buttons until the sheet has loaded
-const pruneCart = () => { for (const c in cart) { const p = BY_CODE[c]; if (!canBuy(p)) delete cart[c]; else cart[c] = Math.min(cart[c], maxQty(p)); } };
+/* Free gifts: each item with gift: lets the customer add one of that gift free */
+const giftAllowance = code => Object.entries(cart).reduce((s, [c, q]) => s + (BY_CODE[c] && BY_CODE[c].gift === code ? q : 0), 0);
+const freeQty = code => Math.min(cart[code] || 0, giftAllowance(code));
+/* Most you can have in the cart: stock, or (for an unpriced gift) only the free ones */
+const buyLimit = p => p.soldOut ? 0 : canBuy(p) ? maxQty(p) : Math.min(maxQty(p), giftAllowance(p.code));
+const giftOf = p => { const g = p.gift && BY_CODE[p.gift]; return g && !g.soldOut ? g : null; };
+const pruneCart = () => { for (const c in cart) { const p = BY_CODE[c], max = buyLimit(p); if (max <= 0) delete cart[c]; else cart[c] = Math.min(cart[c], max); } };
 const saveCart = () => { try { localStorage.setItem("sleighit-cart", JSON.stringify(cart)); } catch (e) {} };
 
 const maxQty = p => p.stock != null ? p.stock : 99;
 
 function setQty(code, q) {
-  const p = BY_CODE[code], max = maxQty(p);
-  if (q > 0 && !canBuy(p)) return;
-  if (q > max) toast(`Only ${max} available`);
+  const p = BY_CODE[code], max = buyLimit(p);
+  if (q > 0 && max <= 0) return;
+  if (q > max) toast(canBuy(p) ? `Only ${max} available` : `${max} free with your nativity`);
   q = Math.min(q, max);
   if (q > 0) cart[code] = q; else delete cart[code];
-  saveCart(); renderGrid(); renderCartBar();
+  pruneCart(); saveCart(); renderGrid(); renderCartBar();
   if ($("cart").open) renderCart();
 }
 
 function cartSummary() {
-  const lines = Object.entries(cart).map(([code, qty]) => ({ p: BY_CODE[code], qty }));
+  const lines = Object.entries(cart).map(([code, qty]) => ({ p: BY_CODE[code], qty, free: freeQty(code) }));
   const count = lines.reduce((s, l) => s + l.qty, 0);
-  const total = lines.reduce((s, l) => s + (hasPrice(l.p) ? l.p.price * l.qty : 0), 0);
-  const unpriced = lines.some(l => !hasPrice(l.p));
-  return { lines, count, total, unpriced };
+  const total = lines.reduce((s, l) => s + (hasPrice(l.p) ? l.p.price * (l.qty - l.free) : 0), 0);
+  const unpriced = lines.some(l => !hasPrice(l.p) && l.qty > l.free);
+  /* Multi-buy deals: group the units, most expensive first, into sets of deal.qty */
+  const deals = Object.entries(DEALS).map(([key, d]) => {
+    const units = lines.filter(l => l.p.deal === key && hasPrice(l.p)).flatMap(l => Array(l.qty).fill(l.p.price)).sort((a, b) => b - a);
+    const sets = Math.floor(units.length / d.qty);
+    let save = 0;
+    for (let k = 0; k < sets; k++) save += Math.max(0, units.slice(k * d.qty, (k + 1) * d.qty).reduce((a, b) => a + b, 0) - d.price);
+    return { key, d, n: units.length, sets, save, short: units.length % d.qty ? d.qty - units.length % d.qty : 0 };
+  }).filter(x => x.n);
+  const saved = deals.reduce((s, x) => s + x.save, 0);
+  return { lines, count, total: total - saved, unpriced, deals };
 }
 
 let toastT;
@@ -602,14 +664,21 @@ async function loadSheet() {
     for (const r of rows.slice(1)) {
       const p = BY_CODE[(r[cCode] || "").trim().toUpperCase()];
       if (!p) continue;
-      if (cPrice >= 0) { const v = num(r[cPrice]); p.price = v == null ? "" : v; }
+      if (cPrice >= 0) { const v = num(r[cPrice]); if (v != null) p.price = v; }   // blank or "-" keeps the price set in PRODUCTS
       if (cH >= 0) p.h = num(r[cH]);
       if (cW >= 0) p.w = num(r[cW]);
-      if (cStock >= 0) { const v = num(r[cStock]); if (v != null) { p.stock = Math.max(0, Math.floor(v)); p.soldOut = p.stock === 0; } }
+      if (cStock >= 0) { const v = num(r[cStock]); if (v != null) {
+        p.stock = Math.max(0, Math.floor(v));
+        p.onOrder = p.stock === 0 && !!p.madeToOrder;   // out of stock but can be restocked: no limit
+        if (p.onOrder) p.stock = null;
+        p.soldOut = p.stock === 0;
+      } }
     }
   } catch (e) {
     console.warn("Couldn't load prices/stock from Google Sheet:", e);
   }
+  for (const p of PRODUCTS) if (p.madeToOrder && p.stock == null) p.onOrder = true;   // not in the sheet yet
+  for (const p of PRODUCTS) if (p.discount && hasPrice(p) && !p.was) { p.was = p.price; p.price = Math.round(p.price * (100 - p.discount) / 100); }
   ready = true;
   pruneCart(); saveCart(); renderGrid(); renderCartBar();
 }
@@ -618,11 +687,11 @@ let active = "All";
 
 function renderChips() {
   $("chips").innerHTML = CATS.map(c =>
-    `<button class="chip" aria-pressed="${c === active}" data-c="${c}">${c}</button>`).join("");
+    `<button class="chip${c === OFFERS ? " deal" : ""}" aria-pressed="${c === active}" data-c="${c}">${c === OFFERS ? "🎁 " + c : c}</button>`).join("");
 }
 
 function renderGrid() {
-  const list = PRODUCTS.map((p, i) => ({ ...p, i })).filter(p => active === "All" || p.cat === active);
+  const list = PRODUCTS.map((p, i) => ({ ...p, i })).filter(p => active === "All" || (active === OFFERS ? isOffer(p) : p.cat === active));
   $("count").textContent = `${list.length} item${list.length === 1 ? "" : "s"}`;
   $("grid").innerHTML = list.map(p => `
     <div class="item">
@@ -630,7 +699,8 @@ function renderGrid() {
         <div class="ph">
           <img src="images/${p.photos[0]}" alt="${p.name}" loading="lazy" class="${isLifestyle(p.photos[0]) ? "" : "contain"}">
           ${p.photos.length > 1 ? `<span class="badge">${p.photos.length} photos</span>` : ""}
-          ${lowLabel(p) ? `<span class="badge low">${lowLabel(p)}</span>` : ""}
+          ${ready && canBuy(p) && (p.was || giftOf(p) || DEALS[p.deal]) ? `<div class="ribbons">${p.was ? `<span class="ribbon sale">${p.discount}% off</span>` : ""}${DEALS[p.deal] ? `<span class="ribbon deal">${DEALS[p.deal].qty} for ${money(DEALS[p.deal].price)}</span>` : ""}${giftOf(p) ? `<span class="ribbon gift">Free base</span>` : ""}</div>` : ""}
+          ${lowLabel(p) ? `<span class="badge low">${lowLabel(p)}</span>` : p.onOrder ? `<span class="badge mto">Made to order</span>` : ""}
         </div>
         <div class="info">
           <div class="meta"><span class="cat">${p.cat}</span><span class="code">${p.code}</span></div>
@@ -640,9 +710,8 @@ function renderGrid() {
         </div>
       </button>
       ${!ready || p.soldOut ? ""
+        : cart[p.code] ? `<div class="step"><button data-dec="${p.code}" aria-label="One less">${MINUS_ICON}</button><span>${cart[p.code]}</span><button data-add="${p.code}" aria-label="One more">${PLUS_ICON}</button></div>`
         : !hasPrice(p) ? `<a class="askbtn" data-ask="${p.code}" href="${askLink(p)}" target="_blank" rel="noopener">${WA_ICON}Ask price</a>`
-        : cart[p.code]
-        ? `<div class="step"><button data-dec="${p.code}" aria-label="One less">${MINUS_ICON}</button><span>${cart[p.code]}</span><button data-add="${p.code}" aria-label="One more">${PLUS_ICON}</button></div>`
         : `<button class="add" data-add="${p.code}" aria-label="Add ${p.name} to cart">${PLUS_ICON}</button>`}
     </div>`).join("");
 }
@@ -655,24 +724,31 @@ function renderCartBar() {
 }
 
 function renderCart() {
-  const { lines, count, total, unpriced } = cartSummary();
+  const { lines, count, total, unpriced, deals } = cartSummary();
   if (!count) {
     $("cartList").innerHTML = `<li class="empty" style="display:block">Your cart is empty.<br>Tap <b>+</b> on any item to add it.</li>`;
     $("cartFoot").style.display = "none";
     return;
   }
   $("cartFoot").style.display = "";
-  $("cartList").innerHTML = lines.map(({ p, qty }) => `
+  const lineText = (p, qty, free) => (free >= qty ? `<span class="free">Free with your nativity</span>`
+    : free ? `<span class="free">${free} free</span> · ${qty - free} × ${priceText(p)}` : priceText(p)) + (p.onOrder ? " · Made to order" : "");
+  $("cartList").innerHTML = lines.map(({ p, qty, free }) => `
     <li>
       <img src="images/${p.photos[0]}" alt="">
       <div>
         <div class="nm">${p.name}</div>
-        <div class="sub">${p.code} · ${priceText(p)}</div>
+        <div class="sub">${p.code} · ${lineText(p, qty, free)}</div>
       </div>
       <div class="right">
         <div class="qty"><button data-dec="${p.code}" aria-label="Less">−</button><span>${qty}</span><button data-inc="${p.code}" aria-label="More">+</button></div>
         <button class="rm" data-rm="${p.code}">Remove</button>
       </div>
+    </li>`).join("") + deals.map(x => `
+    <li class="dealrow">
+      <span>${x.d.icon} Offer: any ${x.d.qty} ${x.d.what} for ${money(x.d.price)}</span>
+      <span class="save">${x.save ? "−" + money(x.save) : ""}</span>
+      ${x.short ? `<span class="nudge">Add ${x.short} more ${x.short > 1 ? x.d.what : x.d.one} to get ${x.d.qty} for ${money(x.d.price)}</span>` : ""}
     </li>`).join("") + suggestions(lines);
   $("cTotal").innerHTML = money(total) + "<small>+ shipping</small>";
   updateSend();
@@ -681,25 +757,41 @@ function renderCart() {
 /* "Goes well with" items (see suggest: in PRODUCTS), shown in the cart and the product popup */
 /* First buyable code in the list, or nothing if one of them is already in the cart */
 const pickSuggest = s => { const cs = [].concat(s || []); return cs.some(c => cart[c]) ? null : cs.map(c => BY_CODE[c]).find(p => p && canBuy(p)) || null; };
-const suggestCard = (p, tag, tip) => `
+const giftTip = g => `Free with your nativity${hasPrice(g) ? ` · worth ${money(g.price)}` : ""}`;
+const suggestCard = (p, tag, tip, btn = "Add", sub = priceText(p)) => `
     <${tag} class="suggest">
       <img src="images/${p.photos[0]}" alt="">
       <div>
         <div class="tip">${tip}</div>
         <div class="nm">${p.name}</div>
-        <div class="sub">${priceText(p)}</div>
+        <div class="sub">${sub}</div>
       </div>
-      <button class="sadd" data-sadd="${p.code}">Add</button>
+      <button class="sadd" data-sadd="${p.code}">${btn}</button>
     </${tag}>`;
 function suggestions(lines) {
-  const picks = [...new Set(lines.map(l => pickSuggest(l.p.suggest)).filter(Boolean))];
-  return picks.map(p => suggestCard(p, "li", "Goes well with your nativity")).join("");
+  /* Free gifts still to claim come first, then ordinary "goes well with" picks */
+  const gifts = [...new Set(lines.map(l => giftOf(l.p)).filter(g => g && (cart[g.code] || 0) < giftAllowance(g.code)))];
+  const picks = [...new Set(lines.filter(l => !l.p.gift).map(l => pickSuggest(l.p.suggest)).filter(Boolean))];
+  return gifts.map(g => { const n = giftAllowance(g.code) - (cart[g.code] || 0);
+      return suggestCard(g, "li", "🎁 Free gift", n > 1 ? `Add ${n} free` : "Add free", giftTip(g)); }).join("")
+    + picks.map(p => suggestCard(p, "li", "Goes well with your nativity")).join("");
 }
 function renderSheetSuggest() {
+  const g = canBuy(current) && giftOf(current);
+  if (g) {
+    const has = cart[current.code] && (cart[g.code] || 0) < giftAllowance(g.code);
+    $("sSuggest").innerHTML = suggestCard(g, "div", "🎁 Free with this nativity", has ? "Add free" : "Add both",
+      has ? giftTip(g) : `Add this set and get the base free${hasPrice(g) ? ` (worth ${money(g.price)})` : ""}`);
+    return;
+  }
   const p = pickSuggest(current.suggest);
   $("sSuggest").innerHTML = p ? suggestCard(p, "div", "Goes well with this nativity") : "";
 }
-const addSuggested = c => { setQty(c, 1); toast(`Added ${BY_CODE[c].name}`); track("suggest-add/" + c, BY_CODE[c].name); };
+const addSuggested = c => {
+  const p = BY_CODE[c], free = giftAllowance(c);
+  if (free > (cart[c] || 0)) { setQty(c, free); toast(`Added free ${p.name}`); track("gift-add/" + c, p.name); return; }
+  setQty(c, (cart[c] || 0) + 1); toast(`Added ${p.name}`); track("suggest-add/" + c, p.name);
+};
 
 function orderMessage() {
   const { lines, count, total, unpriced } = cartSummary();
@@ -707,11 +799,16 @@ function orderMessage() {
   let m = name ? `Hi, I'm ${name}!\n` : "Hi!\n";
   m += "I'm interested in these items:\n\n";
   lines.forEach(({ p, qty }, k) => {
+    const free = freeQty(p.code);
     m += `${k + 1}. ${p.code} – ${p.name} × ${qty}`;
-    if (hasPrice(p)) m += ` (${money(p.price * qty)})`;
+    if (free >= qty) m += " (FREE with nativity)";
+    else if (free) m += ` (${free} free${hasPrice(p) ? `, ${money(p.price * (qty - free))}` : ""})`;
+    else if (hasPrice(p)) m += ` (${money(p.price * qty)}${p.was ? `, ${p.discount}% off` : ""})`;
+    if (p.onOrder) m += " – made to order";
     m += "\n";
   });
   m += `\nTotal items: ${count}`;
+  for (const x of cartSummary().deals) if (x.save) m += `\nOffer: ${x.d.qty} ${x.d.what} for ${money(x.d.price)} (−${money(x.save)})`;
   if (total) m += `\nTotal: ${money(total)} + shipping`;
   return m;
 }
@@ -743,8 +840,12 @@ function openProduct(i) {
   $("sSize").textContent = sizeText(p) ? "Size: " + sizeText(p) : "";
   $("sSize").style.display = sizeText(p) ? "" : "none";
   $("sDesc").textContent = p.desc;
-  $("sPrice").textContent = priceText(p);
+  $("sPrice").innerHTML = priceText(p) + (p.was && !p.soldOut ? ` <small>(${p.discount}% off)</small>` : "");
   $("sPrice").className = "price" + (canBuy(p) ? "" : " ask");
+  const g = canBuy(p) && giftOf(p);
+  const dl = canBuy(p) && DEALS[p.deal];
+  $("sOffer").textContent = dl ? `${dl.icon} Any ${dl.qty} ${dl.what} for ${money(dl.price)}. Mix and match.` : g ? `🎁 Comes with a free ${g.name.toLowerCase()}. Add it below or from your cart.` : p.onOrder ? "Made to order: we'll restock it for you." : "";
+  $("sOffer").style.display = $("sOffer").textContent ? "" : "none";
   $("sBuy").style.display = canBuy(p) ? "" : "none";
   $("sAsk").style.display = ready && !p.soldOut && !hasPrice(p) ? "" : "none";
   $("sAsk").href = askLink(p);
@@ -786,7 +887,15 @@ $("sAdd").onclick = () => {
   $("sheet").close(); toast(`Added ${sheetQty} × ${current.name}`);
 };
 $("sSuggest").addEventListener("click", e => {
-  const t = e.target.closest("[data-sadd]"); if (t) { addSuggested(t.dataset.sadd); renderSheetSuggest(); }
+  const t = e.target.closest("[data-sadd]"); if (!t) return;
+  const g = giftOf(current);
+  if (g && g.code === t.dataset.sadd && !cart[current.code]) {   // "Add both": the set first, then its free base
+    track("add-to-cart/" + current.code, current.name);
+    setQty(current.code, sheetQty); setQty(g.code, giftAllowance(g.code));
+    $("sheet").close(); toast(`Added ${current.name} + free base`); track("gift-add/" + g.code, g.name);
+    return;
+  }
+  addSuggested(t.dataset.sadd); renderSheetSuggest();
 });
 $("cartBtn").onclick = () => { renderCart(); $("cart").showModal(); };
 $("cartList").addEventListener("click", e => {
@@ -843,7 +952,23 @@ if (SHOP.goatcounter) {
 }
 
 $("yr").textContent = new Date().getFullYear();
-renderChips(); renderGrid(); renderCartBar(); renderContacts();
+/* Offer banner: built from the gift: and discount: fields, so it updates itself */
+function renderPromo() {
+  const live = PRODUCTS.filter(isOffer);
+  const parts = [];
+  if (live.some(p => p.gift)) parts.push("🎁 Free wooden base with mini nativity sets");
+  const pct = Math.max(0, ...live.map(p => p.discount || 0));
+  for (const [key, d] of Object.entries(DEALS)) if (live.some(p => p.deal === key)) parts.push(`${d.icon} Any ${d.qty} ${d.what} for ${money(d.price)}`);
+  if (pct) parts.push(`🏷️ ${live.filter(p => p.discount).length > 1 ? "Up to " : ""}${pct}% off selected sets`);
+  $("promo").hidden = !parts.length;
+  $("promo").innerHTML = `<span class="t">${parts.map(t => `<span>${t}</span>`).join("")}</span>`
+    + (SHOP.offerEnds ? `<span class="end">Till ${SHOP.offerEnds}</span>` : "");
+}
+$("promo").onclick = () => {
+  active = OFFERS; renderChips(); renderGrid(); track("offers-banner", "Offer banner tapped");
+  window.scrollTo({ top: $("count").getBoundingClientRect().top + scrollY - $("chips").offsetHeight - 8, behavior: "smooth" });
+};
+renderPromo(); renderChips(); renderGrid(); renderCartBar(); renderContacts();
 loadSheet();
 </script>
 </body>
