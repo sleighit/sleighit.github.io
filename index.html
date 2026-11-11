@@ -503,7 +503,7 @@ const PRODUCTS = [
     desc: "Round-faced, child-like figures in glossy white with gold crowns and halos." },
   { code: "C0002", name: "White & Gold Mini Nativity", cat: "Nativity", price: "", gift: "C0036", photos: ["nativity-gold.jpg", "nativity-gold-2.jpg"],
     desc: "A dainty white nativity with shimmering gold trim — lovely on a mantel or side table." },
-  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", gift: "C0037", photos: ["nativity-round.jpg"],
+  { code: "C0016", name: "Round Mini Nativity", cat: "Nativity", price: "", discount: 15, gift: "C0037", photos: ["nativity-round.jpg"],
     desc: "Tiny, rounded white and gold figures — a gentle, modern take on the nativity." },
   { code: "C0017", name: "Holy Family Arch", cat: "Nativity", price: "", photos: ["holy-family-arch.jpg"],
     desc: "Mary, Joseph and baby Jesus sheltered under an ivory arch with a gold star." },
@@ -1001,7 +1001,7 @@ function renderPromo() {
   const pct = Math.max(0, ...live.map(p => p.discount || 0));
   for (const [key, d] of Object.entries(DEALS)) if (live.some(p => p.deal === key)) parts.push(`${d.icon} Any ${d.qty} ${d.what} for ${money(d.price)}`);
   if (SHOP.freeDelivery) parts.push(`🚚 Free delivery above ${money(SHOP.freeDelivery)}`);
-  if (pct) parts.push(`🏷️ ${live.filter(p => p.discount).length > 1 ? "Up to " : ""}${pct}% off selected sets`);
+  if (pct) parts.push(`🏷️ ${live.filter(p => p.discount).length > 1 ? "Up to " : ""}${pct}% off selected items`);
   $("promo").hidden = !parts.length;
   $("promo").innerHTML = `<span class="t">${parts.map(t => `<span>${t}</span>`).join("")}</span>`
     + (SHOP.offerEnds ? `<span class="end">Till ${SHOP.offerEnds}</span>` : "");
