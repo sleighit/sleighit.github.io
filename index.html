@@ -153,6 +153,7 @@
   .promo .t { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 14px; font: italic 500 15px/1.35 var(--serif); }
   .promo .t span { white-space: nowrap; }
   .promo .end { display: block; font-size: 12px; opacity: .8; margin-top: 3px; }
+  .order .xmas { margin: 0 auto 16px; font: italic 500 17px/1.35 var(--serif); color: #f1d79c; }
   .chip.deal { border-color: var(--red); color: var(--red); }
   .chip.deal[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
   .card .info { padding: 10px 12px 10px; border-top: 1px solid var(--line); flex: 1; display: flex; flex-direction: column; }
@@ -381,6 +382,7 @@
     <li>Tap <b>Send order on WhatsApp</b>. Your list goes straight to us.</li>
     <li>We'll confirm price, availability and delivery or pickup.</li>
   </ol>
+  <p class="xmas" id="xmasOrder" hidden></p>
   <div class="contacts" id="contacts"></div>
 </section>
 
@@ -421,6 +423,7 @@
     </div>
     <div class="cart-foot" id="cartFoot">
       <div class="ship" id="cShip"></div>
+      <div class="ship" id="cXmas" hidden></div>
       <div class="total"><span>Total</span><span id="cTotal"></span></div>
       <label for="cName">Your name <span class="req">*</span></label>
       <input id="cName" autocomplete="name" placeholder="e.g. Anna" required>
@@ -446,7 +449,7 @@
    ========================================================== */
 const SHOP = {
   whatsapp: ["917025662944", "917736969484"],
-  instagram: "",
+  instagram: "_sleigh.it_",
   currency: "₹",
   // Live price & stock from Google Sheets (sheet must be "Anyone with the link: Viewer").
   // id  = the long code in the sheet's link between /d/ and /edit
@@ -454,7 +457,10 @@ const SHOP = {
   sheet: { id: "1RJ9jaE2dfEjR4V7NpzrOsQ7OQF5CKetvfPspfbVRjbo", gid: "1563270703" },
   lowStock: 3,   // show "Only N left" at or below this
   freeDelivery: 2000,   // orders at or above this ship free; 0 = off
-  offerEnds: "",   // e.g. "20 Dec" to show "Till 20 Dec" in the offer banner; "" = no end date
+  offerEnds: "30 Nov",   // e.g. "20 Dec" to show "Offers till 20 Dec" in the offer banner; "" = no end date
+  // Last day to order for delivery before Christmas. Shown in the banner, "How to order" and the cart,
+  // and hidden automatically once the day has passed. "" = don't show.
+  lastOrder: "20 Dec",
   // GoatCounter visitor stats: your code from goatcounter.com (the "sleighit" in sleighit.goatcounter.com).
   // Leave "" to turn stats off.
   goatcounter: "sleighit",
@@ -1025,10 +1031,28 @@ function renderPromo() {
   for (const [key, d] of Object.entries(DEALS)) if (live.some(p => p.deal === key)) parts.push(`${d.icon} Any ${d.qty} ${d.what} for ${money(d.price)}`);
   if (SHOP.freeDelivery) parts.push(`🚚 Free delivery above ${money(SHOP.freeDelivery)}`);
   if (pct) parts.push(`🏷️ ${live.filter(p => p.discount).length > 1 ? "Up to " : ""}${pct}% off selected items`);
+  const ends = [];
+  if (SHOP.offerEnds && !datePassed(SHOP.offerEnds)) ends.push(`Offers till ${SHOP.offerEnds}`);
+  if (lastOrderLive()) ends.push(`🎄 Order by ${SHOP.lastOrder} for Christmas delivery`);
   $("promo").hidden = !parts.length;
   $("promo").innerHTML = `<span class="t">${parts.map(t => `<span>${t}</span>`).join("")}</span>`
-    + (SHOP.offerEnds ? `<span class="end">Till ${SHOP.offerEnds}</span>` : "");
+    + (ends.length ? `<span class="end">${ends.join(" · ")}</span>` : "");
 }
+/* "20 Dec" → true once that day is over (this year's date) */
+function datePassed(s) {
+  const d = new Date(`${s} ${new Date().getFullYear()} 23:59:59`);
+  return !isNaN(d) && Date.now() > d;
+}
+const lastOrderLive = () => !!SHOP.lastOrder && !datePassed(SHOP.lastOrder);
+function renderXmas() {
+  const on = lastOrderLive();
+  $("xmasOrder").hidden = $("cXmas").hidden = !on;
+  if (on) {
+    $("xmasOrder").textContent = `🎄 Order by ${SHOP.lastOrder} to get it before Christmas.`;
+    $("cXmas").textContent = `🎄 Order by ${SHOP.lastOrder} for Christmas delivery`;
+  }
+}
+renderXmas();
 $("promo").onclick = () => {
   active = OFFERS; renderChips(); renderGrid(); track("offers-banner", "Offer banner tapped");
   window.scrollTo({ top: $("count").getBoundingClientRect().top + scrollY - $("chips").offsetHeight - 8, behavior: "smooth" });
